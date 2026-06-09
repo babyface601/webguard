@@ -1,0 +1,11 @@
+reports/
+webguard.db
+__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+.vscode/
+*.egg-info/
+dist/
+build/

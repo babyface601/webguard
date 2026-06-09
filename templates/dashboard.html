@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WebGuard – Scanner de Vulnérabilités Web</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+header{background:#1e293b;border-bottom:1px solid #334155;padding:.9rem 2rem;display:flex;align-items:center;gap:.75rem}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#ef4444,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+header h1{font-size:1.15rem;font-weight:700;color:#f1f5f9}
+header span{font-size:.7rem;color:#64748b;display:block}
+.container{max-width:980px;margin:0 auto;padding:2rem}
+
+/* Cards */
+.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem}
+.card h2{font-size:1rem;margin-bottom:1rem;color:#f1f5f9}
+
+/* Scan form */
+.input-row{display:flex;gap:.75rem;margin-bottom:1rem}
+input[type=text]{flex:1;background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:.6rem .9rem;border-radius:7px;font-size:.9rem;outline:none;transition:border-color .2s}
+input[type=text]:focus{border-color:#3b82f6}
+.scan-btn{background:linear-gradient(135deg,#3b82f6,#7c3aed);color:#fff;border:none;padding:.6rem 1.4rem;border-radius:7px;cursor:pointer;font-weight:600;font-size:.9rem;white-space:nowrap;transition:opacity .2s}
+.scan-btn:disabled{opacity:.45;cursor:not-allowed}
+.modules-grid{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem}
+.mod-cb{display:flex;align-items:center;gap:.35rem;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:.3rem .65rem;cursor:pointer;font-size:.8rem;color:#94a3b8;user-select:none;transition:border-color .2s}
+.mod-cb:hover{border-color:#3b82f6}
+.mod-cb input{accent-color:#3b82f6}
+.warning{background:#431407;border:1px solid #c2410c;border-radius:7px;padding:.6rem .9rem;font-size:.78rem;color:#fed7aa;margin-bottom:1rem}
+
+/* Progress */
+.progress-box{display:none;background:#0f172a;border-radius:8px;padding:1rem;margin-top:1rem}
+.progress-bar-bg{background:#1e293b;border-radius:99px;height:8px;margin:.5rem 0}
+.progress-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#3b82f6,#7c3aed);transition:width .4s ease}
+
+/* Severity counts grid */
+.sev-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:1.25rem}
+.sev-cell{background:#0f172a;border-radius:8px;padding:.6rem .5rem;text-align:center;border-top:3px solid #334155}
+.sev-num{font-size:1.5rem;font-weight:700;line-height:1}
+.sev-label{font-size:.6rem;color:#64748b;text-transform:uppercase;margin-top:.2rem}
+
+/* Filter tabs */
+.filter-tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem}
+.filter-tab{background:#0f172a;border:1px solid #334155;color:#94a3b8;padding:.25rem .7rem;border-radius:20px;font-size:.75rem;cursor:pointer;transition:all .2s}
+.filter-tab.active{background:#3b82f6;border-color:#3b82f6;color:#fff}
+
+/* Module accordion */
+.module-block{background:#0f172a;border:1px solid #334155;border-radius:8px;margin-bottom:.6rem;overflow:hidden}
+.module-toggle{width:100%;background:none;border:none;color:#f1f5f9;padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:.88rem;font-weight:600;text-align:left}
+.module-toggle:hover{background:#1e293b}
+.module-body{padding:0 1rem .75rem;display:none}
+.module-block.open .module-body{display:block}
+.module-block.open .chevron{transform:rotate(180deg)}
+.chevron{transition:transform .2s;font-size:.7rem;color:#64748b}
+
+/* Finding item */
+.finding-item{border-radius:6px;padding:.55rem .75rem;margin-top:.45rem;border-left:3px solid #334155;font-size:.82rem}
+.finding-item.hidden{display:none}
+.finding-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.2rem}
+.badge{padding:.12rem .45rem;border-radius:20px;font-size:.62rem;font-weight:700;letter-spacing:.03em}
+.finding-desc{color:#cbd5e1;line-height:1.45}
+.finding-rec{color:#64748b;font-size:.75rem;margin-top:.25rem}
+.finding-rec strong{color:#94a3b8}
+.owasp-tag{font-size:.65rem;color:#475569;margin-top:.2rem}
+
+/* Severity colors */
+.sev-CRITICAL{border-left-color:#ef4444;background:#1a0a0a}
+.sev-HIGH    {border-left-color:#f97316;background:#1a100a}
+.sev-MEDIUM  {border-left-color:#eab308;background:#1a180a}
+.sev-LOW     {border-left-color:#22c55e;background:#0a1a0e}
+.sev-INFO    {border-left-color:#3b82f6;background:#0a0f1a}
+
+/* Security score */
+.score-ring{text-align:center;margin-bottom:1.5rem}
+.score-ring svg{overflow:visible}
+.score-text{font-size:2rem;font-weight:700}
+
+/* History */
+.history-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.history-table td,.history-table th{padding:.45rem .6rem;text-align:left;border-bottom:1px solid #0f172a}
+.history-table th{color:#64748b;font-size:.7rem;text-transform:uppercase;background:#0f172a}
+.history-table tr:hover td{background:#0f172a}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px}
+
+/* Buttons */
+.report-btn{display:inline-block;margin-top:1rem;background:#22c55e;color:#fff;padding:.45rem 1.1rem;border-radius:7px;text-decoration:none;font-weight:600;font-size:.82rem}
+.section-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:.75rem;font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo-icon">🛡️</div>
+  <div>
+    <h1>WebGuard</h1>
+    <span>Scanner de Vulnérabilités Web — OWASP Top 10</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Formulaire de scan -->
+  <div class="card">
+    <h2>🎯 Nouveau Scan</h2>
+    <div class="warning">⚠️ Usage légal uniquement — Scanner exclusivement des applications dont vous avez l'autorisation écrite.</div>
+    <div class="input-row">
+      <input type="text" id="target-url" placeholder="https://exemple.com  ou  http://192.168.1.1" />
+      <button class="scan-btn" id="scan-btn" onclick="startScan()">▶ Lancer le scan</button>
+    </div>
+    <div class="section-title">Modules à exécuter</div>
+    <div class="modules-grid">
+      <label class="mod-cb"><input type="checkbox" value="headers" checked> Headers</label>
+      <label class="mod-cb"><input type="checkbox" value="ssl" checked> SSL/TLS</label>
+      <label class="mod-cb"><input type="checkbox" value="dirs" checked> Directories</label>
+      <label class="mod-cb"><input type="checkbox" value="csrf" checked> CSRF</label>
+      <label class="mod-cb"><input type="checkbox" value="cookies_cors" checked> Cookies &amp; CORS</label>
+      <label class="mod-cb"><input type="checkbox" value="xss"> XSS Scanner</label>
+      <label class="mod-cb"><input type="checkbox" value="sqli"> SQL Injection</label>
+    </div>
+    <div class="progress-box" id="progress-box">
+      <div style="display:flex;justify-content:space-between;font-size:.8rem">
+        <span id="progress-label">Initialisation...</span>
+        <span id="progress-pct" style="color:#3b82f6;font-weight:600">0%</span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Résultats -->
+  <div id="results-section" style="display:none">
+    <div class="card">
+      <h2>📊 Résultats du Scan <span id="results-url" style="font-size:.75rem;color:#64748b;font-weight:400"></span></h2>
+
+      <!-- Score de sécurité -->
+      <div class="score-ring" id="score-ring"></div>
+
+      <!-- Compteurs par sévérité -->
+      <div class="sev-grid" id="sev-grid"></div>
+
+      <!-- Filtres par sévérité -->
+      <div class="filter-tabs" id="filter-tabs">
+        <button class="filter-tab active" onclick="filterFindings('ALL')">Tous</button>
+        <button class="filter-tab" onclick="filterFindings('CRITICAL')" style="color:#ef4444">CRITICAL</button>
+        <button class="filter-tab" onclick="filterFindings('HIGH')" style="color:#f97316">HIGH</button>
+        <button class="filter-tab" onclick="filterFindings('MEDIUM')" style="color:#eab308">MEDIUM</button>
+        <button class="filter-tab" onclick="filterFindings('LOW')" style="color:#22c55e">LOW</button>
+        <button class="filter-tab" onclick="filterFindings('INFO')" style="color:#3b82f6">INFO</button>
+      </div>
+
+      <!-- Modules accordéon -->
+      <div id="modules-container"></div>
+
+      <a id="report-link" href="#" target="_blank" class="report-btn" style="display:none">📄 Rapport HTML complet</a>
+    </div>
+  </div>
+
+  <!-- Historique -->
+  <div class="card">
+    <h2>📁 Historique des Scans</h2>
+    <div id="history-content"><p style="color:#64748b;font-size:.85rem">Aucun scan enregistré.</p></div>
+  </div>
+
+</div>
+
+<script>
+const SEV_COLOR = {CRITICAL:'#ef4444', HIGH:'#f97316', MEDIUM:'#eab308', LOW:'#22c55e', INFO:'#3b82f6'};
+let pollInterval = null;
+let isScanning = false;
+let currentFilter = 'ALL';
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s ?? '');
+  return d.innerHTML;
+}
+
+function getSelectedModules() {
+  return [...document.querySelectorAll('.mod-cb input:checked')].map(i => i.value);
+}
+
+// ── Scan ──────────────────────────────────────────────────────────────────────
+
+async function startScan() {
+  if (isScanning) return;
+  const url = document.getElementById('target-url').value.trim();
+  if (!url) { alert('Entrez une URL cible'); return; }
+  const mods = getSelectedModules();
+  if (!mods.length) { alert('Sélectionnez au moins un module'); return; }
+
+  isScanning = true;
+  document.getElementById('scan-btn').disabled = true;
+  document.getElementById('progress-box').style.display = 'block';
+  document.getElementById('results-section').style.display = 'none';
+  setProgress(0, 'Démarrage...');
+
+  try {
+    const resp = await fetch('/api/scan', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url, modules: mods})
+    });
+    const body = await resp.json();
+    if (body.error) { alert('Erreur : ' + body.error); resetScanBtn(); return; }
+    pollInterval = setInterval(() => pollScan(body.scan_id), 1500);
+  } catch (e) {
+    alert('Erreur réseau : ' + e.message);
+    resetScanBtn();
+  }
+}
+
+async function pollScan(scan_id) {
+  try {
+    const s = await fetch('/api/scan/' + scan_id).then(r => r.json());
+    const label = s.status === 'done' ? 'Scan terminé ✓' : '⏳ ' + s.current_module;
+    setProgress(s.progress, label);
+    if (s.status === 'done') {
+      clearInterval(pollInterval);
+      resetScanBtn();
+      await showResults(scan_id);
+      loadHistory();
+    }
+  } catch(e) {
+    clearInterval(pollInterval);
+    resetScanBtn();
+  }
+}
+
+function resetScanBtn() {
+  isScanning = false;
+  document.getElementById('scan-btn').disabled = false;
+}
+
+function setProgress(pct, label) {
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-label').textContent = label;
+}
+
+// ── Résultats ─────────────────────────────────────────────────────────────────
+
+async function showResults(scan_id) {
+  const [sResp, rResp] = await Promise.all([
+    fetch('/api/scan/' + scan_id),
+    fetch('/api/scan/' + scan_id + '/results')
+  ]);
+  const s = await sResp.json();
+
+  document.getElementById('results-url').textContent = '— ' + (s.url || '');
+  document.getElementById('results-section').style.display = 'block';
+
+  if (!rResp.ok) {
+    document.getElementById('modules-container').innerHTML =
+      `<p style="color:#22c55e">Scan terminé — ${esc(s.total_findings)} finding(s).</p>`;
+    return;
+  }
+
+  const data = await rResp.json();
+  renderScore(data.counts, data.results);
+  renderSevGrid(data.counts);
+  renderModules(data.results);
+  if (s.report_name) {
+    const link = document.getElementById('report-link');
+    link.href = '/report/' + s.report_name;
+    link.style.display = 'inline-block';
+  }
+}
+
+function calcScore(counts) {
+  const weights = {CRITICAL: 25, HIGH: 15, MEDIUM: 8, LOW: 3, INFO: 0};
+  const penalty = Object.entries(weights).reduce((acc, [k,w]) => acc + (counts[k]||0)*w, 0);
+  return Math.max(0, 100 - penalty);
+}
+
+function renderScore(counts, results) {
+  const score = calcScore(counts);
+  const color = score >= 80 ? '#22c55e' : score >= 50 ? '#eab308' : '#ef4444';
+  const label = score >= 80 ? 'Bon' : score >= 50 ? 'Moyen' : 'Critique';
+  const total = Object.values(counts).reduce((a,b)=>a+b,0);
+
+  const circumference = 2 * Math.PI * 40;
+  const dash = (score / 100) * circumference;
+
+  document.getElementById('score-ring').innerHTML = `
+    <svg width="120" height="120" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="40" fill="none" stroke="#1e293b" stroke-width="10"/>
+      <circle cx="50" cy="50" r="40" fill="none" stroke="${color}" stroke-width="10"
+        stroke-dasharray="${dash} ${circumference - dash}"
+        stroke-dashoffset="${circumference / 4}"
+        stroke-linecap="round" style="transition:stroke-dasharray .8s ease"/>
+      <text x="50" y="46" text-anchor="middle" fill="${color}" font-size="18" font-weight="700" font-family="Segoe UI,Arial">${score}</text>
+      <text x="50" y="60" text-anchor="middle" fill="#64748b" font-size="9" font-family="Segoe UI,Arial">${label} · ${total} findings</text>
+    </svg>
+  `;
+}
+
+function renderSevGrid(counts) {
+  const el = document.getElementById('sev-grid');
+  el.innerHTML = ['CRITICAL','HIGH','MEDIUM','LOW','INFO'].map(sv => `
+    <div class="sev-cell" style="border-top-color:${SEV_COLOR[sv]}">
+      <div class="sev-num" style="color:${SEV_COLOR[sv]}">${esc(counts[sv]||0)}</div>
+      <div class="sev-label">${sv}</div>
+    </div>`).join('');
+}
+
+function renderModules(results) {
+  const container = document.getElementById('modules-container');
+  container.innerHTML = '';
+  currentFilter = 'ALL';
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.toggle('active', t.textContent.trim() === 'Tous'));
+
+  results.forEach((mod, idx) => {
+    const hasError = !!mod.error;
+    const count = mod.total || 0;
+    const countColor = count > 0 ? '#f97316' : '#22c55e';
+
+    const block = document.createElement('div');
+    block.className = 'module-block';
+    block.dataset.moduleIdx = idx;
+
+    let findingsHtml = '';
+    (mod.findings || []).forEach((f, fi) => {
+      const sev = f.severity || 'INFO';
+      findingsHtml += `
+        <div class="finding-item sev-${esc(sev)}" data-sev="${esc(sev)}">
+          <div class="finding-header">
+            <span class="badge" style="background:${SEV_COLOR[sev] || '#3b82f6'}22;color:${SEV_COLOR[sev] || '#3b82f6'}">${esc(sev)}</span>
+            <span style="color:#94a3b8;font-size:.7rem">${esc(f.type || '')}</span>
+          </div>
+          <div class="finding-desc">${esc(f.description || '')}</div>
+          ${f.recommendation ? `<div class="finding-rec"><strong>Fix :</strong> ${esc(f.recommendation)}</div>` : ''}
+          ${f.owasp ? `<div class="owasp-tag">${esc(f.owasp)}</div>` : ''}
+        </div>`;
+    });
+
+    block.innerHTML = `
+      <button class="module-toggle" onclick="toggleModule(this)">
+        <span>📦 ${esc(mod.module)} ${hasError ? '⚠️' : ''}</span>
+        <span style="display:flex;align-items:center;gap:.6rem">
+          <span style="font-size:.75rem;font-weight:700;color:${countColor}">${count} finding(s)</span>
+          <span class="chevron">▼</span>
+        </span>
+      </button>
+      <div class="module-body">
+        ${hasError ? `<p style="color:#ef4444;font-size:.82rem;margin-bottom:.5rem">⚠️ Erreur : ${esc(mod.error)}</p>` : ''}
+        ${findingsHtml || '<p style="color:#22c55e;font-size:.82rem">✓ Aucune vulnérabilité détectée</p>'}
+      </div>`;
+
+    container.appendChild(block);
+
+    // Auto-ouvrir les modules avec des findings
+    if (count > 0 || hasError) {
+      block.classList.add('open');
+    }
+  });
+}
+
+function toggleModule(btn) {
+  btn.closest('.module-block').classList.toggle('open');
+}
+
+function filterFindings(sev) {
+  currentFilter = sev;
+  document.querySelectorAll('.filter-tab').forEach(t => {
+    t.classList.toggle('active', t.textContent.trim() === sev || (sev === 'ALL' && t.textContent.trim() === 'Tous'));
+  });
+  document.querySelectorAll('.finding-item').forEach(item => {
+    const show = sev === 'ALL' || item.dataset.sev === sev;
+    item.classList.toggle('hidden', !show);
+  });
+  // Ouvrir les modules qui ont des findings visibles
+  document.querySelectorAll('.module-block').forEach(block => {
+    const visible = [...block.querySelectorAll('.finding-item:not(.hidden)')].length;
+    if (sev !== 'ALL') block.classList.toggle('open', visible > 0);
+  });
+}
+
+// ── Historique ────────────────────────────────────────────────────────────────
+
+async function loadHistory() {
+  try {
+    const scans = await fetch('/api/scans').then(r => r.json());
+    if (!scans.length) return;
+    let html = `<table class="history-table">
+      <thead><tr><th>ID</th><th>URL</th><th>Statut</th><th>Findings</th><th>Terminé</th><th>Rapport</th></tr></thead><tbody>`;
+    scans.forEach(s => {
+      const dot = s.status === 'done' ? '#22c55e' : s.status === 'running' ? '#3b82f6' : '#eab308';
+      html += `<tr>
+        <td style="color:#64748b;font-family:monospace">${esc(s.id)}</td>
+        <td><span style="color:#60a5fa">${esc(s.url)}</span></td>
+        <td><span class="status-dot" style="background:${dot}"></span>${esc(s.status)}</td>
+        <td style="color:${(s.total_findings||0) > 0 ? '#f97316' : '#22c55e'};font-weight:600">${esc(s.total_findings||0)}</td>
+        <td style="color:#64748b;font-size:.75rem">${esc(s.finished_at||'—')}</td>
+        <td>${s.report_name
+          ? `<a href="/report/${esc(s.report_name)}" target="_blank" style="color:#3b82f6;text-decoration:none">📄 Voir</a>`
+          : '—'}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('history-content').innerHTML = html;
+  } catch(e) { /* silencieux */ }
+}
+
+// Charger l'historique au démarrage (scans persistés en DB)
+loadHistory();
+</script>
+</body>
+</html>
