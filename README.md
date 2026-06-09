@@ -1,6 +1,18 @@
 # 🛡️ WebGuard — Scanner de Vulnérabilités Web OWASP
 
+![CI](https://github.com/babyface601/webguard/actions/workflows/ci.yml/badge.svg)
+![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-2.3+-000000?logo=flask)
+![OWASP](https://img.shields.io/badge/OWASP-Top%2010-red)
+![License](https://img.shields.io/badge/Licence-MIT-green)
+
 WebGuard est un scanner automatisé de vulnérabilités web basé sur l'**OWASP Top 10**, construit avec **Python/Flask**. Il analyse une URL cible, détecte les failles de sécurité par modules indépendants, et génère un rapport HTML avec score de sécurité.
+
+---
+
+## 📸 Aperçu
+
+![Dashboard WebGuard](docs/screenshot.png)
 
 ---
 
